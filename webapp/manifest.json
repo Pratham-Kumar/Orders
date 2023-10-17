@@ -111,7 +111,7 @@
         },
         {
           "name": "Info",
-          "pattern": "Info",
+          "pattern": "SalesOrderSet/{objectId}/Item/{itemPosition}",
           "target": [
             "master",
             "object",
