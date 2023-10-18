@@ -32,10 +32,19 @@ sap.ui.define([
 
 			this.getRouter().getRoute("object").attachPatternMatched(this._onObjectMatched, this);
 			this.getRouter().getRoute("Info").attachPatternMatched(this._onObjectMatched, this);
+			this.getRouter().getRoute("create").attachPatternMatched(this._onObjectMatched, this);
 
 			this.setModel(oViewModel, "detailView");
 
 			this.getOwnerComponent().getModel().metadataLoaded().then(this._onMetadataLoaded.bind(this));
+		},
+
+		onCreate: function (oEvent) {
+			var bReplace = !Device.system.phone;
+
+			this.getRouter().navTo("create", {
+				objectId : oEvent.getSource().getBindingContext().getProperty("SalesOrderID")
+			}, bReplace);
 		},
 
 		/* =========================================================== */
@@ -229,6 +238,124 @@ sap.ui.define([
 			var oBinding = oEvent.getSource().getBindingContext().getObject();
 			var oMessage = this.getResourceBundle().getText("OrderPreparationMessage", [oBinding.CustomerID, oBinding.CustomerName]);
 			MessageToast.show(oMessage);
+		},
+
+		/**
+		 * Delete list items according to drag and drop actions
+		 * @param {sap.ui.base.Event} oEvent the drop event of the sap.ui.core.dnd.DropInfo
+		 */
+		onDelete : function (oEvent) {
+			// delete the dragged item
+			var oItemToDelete = oEvent.getParameter("draggedControl");
+
+			// delete the selected item from the list - if nothing selected, remove the first item
+			if (!oItemToDelete) {
+				var oList = this.byId("lineItemsList");
+				oItemToDelete = oList.getSelectedItem() || oList.getItems()[0];
+			}
+
+			// delete the item after user confirmation
+			var sPath = oItemToDelete.getBindingContextPath(),
+				sTitle = oItemToDelete.getBindingContext().getProperty("ProductID");
+			this._confirmDelete(sPath, sTitle);
+		},
+
+		_confirmDelete : function (sPath, sTitle) {
+			var oResourceBundle = this.getResourceBundle();
+			sap.ui.require(["sap/m/MessageBox"], function (MessageBox) {
+				MessageBox.confirm(oResourceBundle.getText("deleteConfirmationMessage", [sTitle]), {
+					title: oResourceBundle.getText("confirmTitle"),
+					onClose: function (sAction) {
+						if (sAction === "OK") {
+							this.getModel().remove(sPath, {
+								success : function () {
+									MessageToast.show(oResourceBundle.getText("deleteSuccessMessage"));
+								},
+								error : function () {
+									MessageBox.error(oResourceBundle.getText("deleteErrorMessage"));
+								}
+							});
+						}
+					}.bind(this)
+				});
+			}.bind(this));
+		},
+
+		/**
+		 * Reorder the list based on drag and drop actions
+		 * @param {sap.ui.base.Event} oEvent the drop event of the sap.ui.core.dnd.DragDropInfo
+		 */
+		onReorder : function (oEvent) {
+			var oDraggedItem = oEvent.getParameter("draggedControl"),
+				oDroppedItem = oEvent.getParameter("droppedControl"),
+				sDropPosition = oEvent.getParameter("dropPosition"),
+				oList = this.byId("lineItemsList"),
+				// get the index of dragged item
+				iDraggedIndex = oList.indexOfItem(oDraggedItem),
+				// get the index of dropped item
+				iDroppedIndex = oList.indexOfItem(oDroppedItem),
+				// get the new dropped item index
+				iNewDroppedIndex = iDroppedIndex + (sDropPosition === "Before" ? 0 : 1) + (iDraggedIndex < iDroppedIndex ? -1 : 0);
+
+			// remove the dragged item
+			oList.removeItem(oDraggedItem);
+			// insert the dragged item on the new drop index
+			oList.insertItem(oDraggedItem, iNewDroppedIndex);
+		},
+
+		/**
+		 * Move up the selected item
+		 * This is an alternative to reorder the list item
+		 * for devices that do not support drag and drop
+		 */
+		onMoveUp : function () {
+			var oList = this.byId("lineItemsList"),
+				oSelectedItem = oList.getSelectedItem();
+			if (!oSelectedItem) {
+				this._showItemNotSelectedMsg();
+				return;
+			}
+			this._moveSelectedItem(oSelectedItem, "Up");
+		},
+
+		/**
+		 * Move down the selected item
+		 * This is an alternative to reorder the list item
+		 * for devices that do not support drag and drop
+		 */
+		onMoveDown : function () {
+			var oList = this.byId("lineItemsList"),
+				oSelectedItem = oList.getSelectedItem();
+			if (!oSelectedItem) {
+				this._showItemNotSelectedMsg();
+				return;
+			}
+			this._moveSelectedItem(oSelectedItem, "Down");
+		},
+
+		/**
+		 * Move the selected item in the given direction (up or down)
+		 * @param {oSelectedItem} The selected item object
+		 * @param {sDirection} Direction in which the item should move
+		 */
+		_moveSelectedItem : function (oSelectedItem, sDirection) {
+			var oList = this.byId("lineItemsList"),
+				iIndex = oList.indexOfItem(oSelectedItem);
+			oList.removeItem(oSelectedItem);
+			if (sDirection === "Up") {
+				iIndex += (iIndex <= 0 ? 0 : -1);
+			} else {
+				iIndex += (iIndex >= oList.getItems().length ? 0 : 1);
+			}
+			oList.insertItem(oSelectedItem, iIndex);
+		},
+
+		/**
+		 * Inform the user if no item is selected to move
+		 */
+		_showItemNotSelectedMsg : function () {
+			var oResourceBundle = this.getResourceBundle();
+			MessageToast.show(oResourceBundle.getText("selectItemToMoveMsg"));
 		}
 	});
 

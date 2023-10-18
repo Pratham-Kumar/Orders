@@ -75,7 +75,9 @@
       "": {
         "dataSource": "mainService",
         "preload": true,
-        "settings": {}
+        "settings": {
+					"defaultBindingMode": "TwoWay"
+				}
       }
     },
     "resources": {
@@ -110,10 +112,19 @@
           ]
         },
         {
+					"pattern": "SalesOrderSet/{objectId}/create",
+					"name": "create",
+					"target": [
+						"list",
+						"object",
+						"create"
+					]
+				},
+        {
           "name": "Info",
           "pattern": "SalesOrderSet/{objectId}/Item/{itemPosition}",
           "target": [
-            "master",
+            "list",
             "object",
             "Info"
           ]
@@ -145,7 +156,13 @@
           "viewName": "Info",
           "controlAggregation": "endColumnPages",
           "viewId": "Info"
-        }
+        },
+        "create": {
+					"viewType": "XML",
+					"viewName": "Create",
+					"controlAggregation": "endColumnPages",
+					"viewId": "create"
+				}
       }
     },
     "rootView": {
